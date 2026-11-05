@@ -66,17 +66,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             : '';
 
         return Household(
+          householdId: (item['household_id'] as num?)?.toInt(),
+          meterNumber: item['meter_number']?.toString(),
           name: item['household_name']?.toString() ?? 'Household',
           street: street,
           city: city,
           occupants: (item['occupants'] as num?)?.toInt() ?? 1,
-          provider:
-              item['electricity_provider']?.toString() ?? 'Not set',
-          ratePerKwh:
-              (item['rate_per_kwh'] as num?)?.toDouble() ?? 0.0,
-          billingCycleDay:
-              (item['billing_cycle_day'] as num?)?.toInt() ?? 1,
-        );
+          provider: item['electricity_provider']?.toString() ?? 'Not set',
+          ratePerKwh: (item['rate_per_kwh'] as num?)?.toDouble() ?? 0.0,
+          billingCycleDay: (item['billing_cycle_day'] as num?)?.toInt() ?? 1,
+          );
       }).toList();
 
       if (!mounted) return;

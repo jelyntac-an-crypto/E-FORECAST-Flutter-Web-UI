@@ -1,19 +1,22 @@
-/// A household registered by the user (shown on SCR-03, created on SCR-04,
-/// opened on SCR-05).
-/// It is held in memory for now. There is no backend or database yet.
+/// A household registered by the user.
 class Household {
+  final int? householdId;
+  final String? meterNumber;
+
   final String name;
-  final String street; // Street / Barangay
-  final String city; // City / Municipality
+  final String street;
+  final String city;
   final int occupants;
   final String provider;
-  final double ratePerKwh; // Pesos per kWh
-  final int billingCycleDay; // Day of the month, 1 to 31
+  final double ratePerKwh;
+  final int billingCycleDay;
 
-  /// True only for the built-in demo households (placeholder values).
+  /// True only for built-in demo households.
   final bool isSample;
 
   const Household({
+    this.householdId,
+    this.meterNumber,
     required this.name,
     required this.street,
     required this.city,
@@ -24,6 +27,6 @@ class Household {
     this.isSample = false,
   });
 
-  /// One-line address for display, for example on a HouseholdCard.
+  /// One-line address for display.
   String get address => '$street, $city';
 }
