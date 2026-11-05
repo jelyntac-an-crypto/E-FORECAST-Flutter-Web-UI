@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../main.dart'; // Import to access themeNotifier
 import '../theme/landing_colors.dart';
 import 'landing_widgets.dart';
 
-/// Navbar: logo, Home / Features / How It Works / About, theme toggle, Login, Get Started.
+/// Navbar: logo, Home / Features / How It Works / About, Login, Get Started.
 /// Collapses to a menu on narrow screens.
 class LandingNavbar extends StatelessWidget {
   final VoidCallback onHomeTap;
@@ -65,8 +64,6 @@ class LandingNavbar extends StatelessWidget {
             ],
           ),
         ),
-        const _ThemeToggle(),
-        const SizedBox(width: 4),
         TextButton(
           onPressed: () => openLogin(context, tab: 0),
           style: TextButton.styleFrom(
@@ -121,60 +118,42 @@ class LandingNavbar extends StatelessWidget {
   }
 
   Widget _menu(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, currentMode, _) {
-        final isDark = currentMode == ThemeMode.dark;
-        return PopupMenuButton<String>(
-          tooltip: 'Menu',
-          icon: Icon(
-            Icons.menu_rounded,
-            color: LandingColors.textPrimary,
-            size: 24,
-          ),
-          offset: const Offset(0, 44),
-          onSelected: (value) {
-            switch (value) {
-              case 'home':
-                onHomeTap();
-              case 'features':
-                onFeaturesTap();
-              case 'how':
-                onHowItWorksTap();
-              case 'about':
-                onAboutTap();
-              case 'theme':
-                themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
-              case 'login':
-                openLogin(context, tab: 0);
-              case 'start':
-                openLogin(context, tab: 1);
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'home', child: _MenuLabel('Home')),
-            const PopupMenuItem(
-              value: 'features',
-              child: _MenuLabel('Features'),
-            ),
-            const PopupMenuItem(
-              value: 'how',
-              child: _MenuLabel('How It Works'),
-            ),
-            const PopupMenuItem(value: 'about', child: _MenuLabel('About')),
-            PopupMenuItem(
-              value: 'theme',
-              child: _MenuLabel(isDark ? 'Light mode' : 'Dark mode'),
-            ),
-            const PopupMenuDivider(),
-            const PopupMenuItem(value: 'login', child: _MenuLabel('Login')),
-            const PopupMenuItem(
-              value: 'start',
-              child: _MenuLabel('Get Started', accent: true),
-            ),
-          ],
-        );
+    return PopupMenuButton<String>(
+      tooltip: 'Menu',
+      icon: Icon(
+        Icons.menu_rounded,
+        color: LandingColors.textPrimary,
+        size: 24,
+      ),
+      offset: const Offset(0, 44),
+      onSelected: (value) {
+        switch (value) {
+          case 'home':
+            onHomeTap();
+          case 'features':
+            onFeaturesTap();
+          case 'how':
+            onHowItWorksTap();
+          case 'about':
+            onAboutTap();
+          case 'login':
+            openLogin(context, tab: 0);
+          case 'start':
+            openLogin(context, tab: 1);
+        }
       },
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'home', child: _MenuLabel('Home')),
+        const PopupMenuItem(value: 'features', child: _MenuLabel('Features')),
+        const PopupMenuItem(value: 'how', child: _MenuLabel('How It Works')),
+        const PopupMenuItem(value: 'about', child: _MenuLabel('About')),
+        const PopupMenuDivider(),
+        const PopupMenuItem(value: 'login', child: _MenuLabel('Login')),
+        const PopupMenuItem(
+          value: 'start',
+          child: _MenuLabel('Get Started', accent: true),
+        ),
+      ],
     );
   }
 }
@@ -193,31 +172,6 @@ class _MenuLabel extends StatelessWidget {
         fontSize: 14,
         fontWeight: accent ? FontWeight.w700 : FontWeight.w500,
       ),
-    );
-  }
-}
-
-/// The sun / moon button.
-class _ThemeToggle extends StatelessWidget {
-  const _ThemeToggle();
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: ThemeController.mode,
-      builder: (context, currentMode, _) {
-        final dark = ThemeController.isDark;
-        return IconButton(
-          tooltip: dark ? 'Switch to light mode' : 'Switch to dark mode',
-          onPressed: ThemeController
-              .toggle, // Calls toggle() which forces element rebuild!
-          icon: Icon(
-            dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-            color: LandingColors.textPrimary,
-            size: 22,
-          ),
-        );
-      },
     );
   }
 }

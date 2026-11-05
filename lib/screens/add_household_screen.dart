@@ -7,13 +7,14 @@ import '../landing/landing_widgets.dart'
     show
         LandingCard,
         LandingContainer,
-        LandingLogo,
         LandingPrimaryButton,
-        LandingSecondaryButton,
-        ThemeToggleButton;
+        LandingSecondaryButton;
 import '../models/household.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_tokens.dart';
 import '../theme/landing_colors.dart';
+import '../widgets/app_back_link.dart';
+import '../widgets/app_top_bar.dart';
 
 /// SCR-04: Add Household.
 /// Saves household details to the FastAPI backend.
@@ -51,9 +52,7 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
     super.dispose();
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────
-
-  /// Validates the form and saves the household through FastAPI.
+  // Validates the form and saves the household through FastAPI.
   Future<void> _save() async {
     if (_isSaving) return;
 
@@ -67,30 +66,34 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
       final householdName = _nameCtrl.text.trim();
       final street = _streetCtrl.text.trim();
       final city = _cityCtrl.text.trim();
+      final occupants = int.parse(_occupantsCtrl.text.trim());
+      final provider = _providerCtrl.text.trim();
+      final rate = double.parse(_rateCtrl.text.trim());
+      final billingDay = int.parse(_billingDayCtrl.text.trim());
 
-      // Send household details to the FastAPI backend.
+      // Send all required household details to FastAPI.
       await ApiService.createHousehold(
         householdName: householdName,
         address: '$street, $city',
         meterNumber: _meterNumberCtrl.text.trim(),
-        occupants: int.parse(_occupantsCtrl.text.trim()),
-        electricityProvider: _providerCtrl.text.trim(),
-        ratePerKwh: double.parse(_rateCtrl.text.trim()),
-        billingCycleDay: int.parse(_billingDayCtrl.text.trim()),
+        occupants: occupants,
+        electricityProvider: provider,
+        ratePerKwh: rate,
+        billingCycleDay: billingDay,
       );
 
       if (!mounted) return;
 
-      // Return the household to the dashboard after successful saving.
+      // Return to the dashboard after successful registration.
       Navigator.of(context).pop(
         Household(
           name: householdName,
           street: street,
           city: city,
-          occupants: int.parse(_occupantsCtrl.text.trim()),
-          provider: _providerCtrl.text.trim(),
-          ratePerKwh: double.parse(_rateCtrl.text.trim()),
-          billingCycleDay: int.parse(_billingDayCtrl.text.trim()),
+          occupants: occupants,
+          provider: provider,
+          ratePerKwh: rate,
+          billingCycleDay: billingDay,
         ),
       );
     } catch (e) {
@@ -113,13 +116,11 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
     }
   }
 
-  /// Leaves without saving.
+  // Leaves the screen without saving.
   void _cancel() {
     if (_isSaving) return;
     Navigator.of(context).pop();
   }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +132,7 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
         backgroundColor: LandingColors.backgroundSoft,
         body: Column(
           children: [
-            _AddHouseholdTopBar(compact: compact),
+            const AppTopBar(),
             Expanded(
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
@@ -145,7 +146,10 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildBackLink(),
+                        AppBackLink(
+                          label: 'My Households',
+                          onPressed: _cancel,
+                        ),
                         const SizedBox(height: 12),
                         _buildHeader(),
                         const SizedBox(height: 24),
@@ -158,7 +162,7 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'All household details are securely saved to your account ',
+                          'All household details are securely saved to your account.',
                           style: TextStyle(
                             color: LandingColors.textSecondary,
                             fontSize: 12,
@@ -177,28 +181,6 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
     );
   }
 
-  Widget _buildBackLink() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: TextButton.icon(
-        onPressed: _cancel,
-        icon: const Icon(Icons.arrow_back_rounded, size: 16),
-        label: const Text('My Households'),
-        style: TextButton.styleFrom(
-          foregroundColor: LandingColors.textSecondary,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 10,
-          ),
-          textStyle: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,7 +189,7 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
           'Add Household',
           style: TextStyle(
             color: LandingColors.textPrimary,
-            fontSize: 28,
+            fontSize: AppText.pageTitle,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.3,
           ),
@@ -247,7 +229,6 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Meter Number
               _field(
                 controller: _meterNumberCtrl,
                 label: 'Meter Number',
@@ -378,7 +359,7 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
     );
   }
 
-  /// Two fields side by side, or stacked when the card is narrow.
+  // Displays fields side by side or stacked on narrow screens.
   Widget _fieldRow(bool twoCol, Widget a, Widget b) {
     if (!twoCol) {
       return Column(
@@ -401,7 +382,7 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
     );
   }
 
-  /// One text field in the shared E-FORECAST input style.
+  // Creates a text field using the shared E-FORECAST input style.
   Widget _field({
     required TextEditingController controller,
     required String label,
@@ -417,11 +398,11 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
     return TextFormField(
       controller: controller,
       validator: validator,
+      enabled: !_isSaving,
       keyboardType: keyboardType,
       inputFormatters: formatters,
       textCapitalization: capitalization,
-      textInputAction:
-          last ? TextInputAction.done : TextInputAction.next,
+      textInputAction: last ? TextInputAction.done : TextInputAction.next,
       onFieldSubmitted: last ? (_) => _save() : null,
       style: TextStyle(
         color: LandingColors.textPrimary,
@@ -442,7 +423,7 @@ class _AddHouseholdScreenState extends State<AddHouseholdScreen> {
   }
 }
 
-// ── Validation ──────────────────────────────────────────────────────────────
+// Validation helpers.
 
 String? _validateRequired(String? value, String label) {
   if (value == null || value.trim().isEmpty) {
@@ -451,6 +432,8 @@ String? _validateRequired(String? value, String label) {
   return null;
 }
 
+/// The server accepts 2 to 100 characters.
+/// The form keeps the existing 60-character limit.
 String? _validateName(String? value) {
   final required = _validateRequired(value, 'Household name');
   if (required != null) return required;
@@ -461,7 +444,7 @@ String? _validateName(String? value) {
   return null;
 }
 
-/// A whole number between [min] and [max] (both included).
+/// Validates a whole number between [min] and [max].
 String? _validateWholeNumber(
   String? value, {
   required String label,
@@ -483,7 +466,7 @@ String? _validateWholeNumber(
   return null;
 }
 
-/// A number greater than 0, such as 12.5 (decimals allowed).
+/// Validates a positive decimal number.
 String? _validateRate(String? value) {
   final text = value?.trim() ?? '';
 
@@ -498,51 +481,4 @@ String? _validateRate(String? value) {
   if (rate <= 0) return 'Rate must be greater than 0';
 
   return null;
-}
-
-/// Top bar: logo and theme toggle.
-class _AddHouseholdTopBar extends StatelessWidget {
-  final bool compact;
-
-  const _AddHouseholdTopBar({required this.compact});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: LandingColors.background,
-        border: Border(
-          bottom: BorderSide(color: LandingColors.border),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: compact ? 16 : 24,
-                vertical: 8,
-              ),
-              child: const Row(
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: LandingLogo(),
-                      ),
-                    ),
-                  ),
-                  ThemeToggleButton(),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

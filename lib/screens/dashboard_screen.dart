@@ -10,6 +10,7 @@ import '../landing/landing_widgets.dart'
         ThemeToggleButton;
 import '../models/household.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_tokens.dart';
 import '../theme/landing_colors.dart';
 import '../widgets/dashboard_sidebar.dart';
 import '../widgets/welcome_greeting.dart';
@@ -17,8 +18,7 @@ import '../widgets/household_card.dart';
 import 'add_household_screen.dart';
 import 'home_screen.dart';
 import 'household_dashboard_screen.dart';
-import 'report_form_screen.dart';
-import 'reports_screen.dart';
+import 'profile_settings_screen.dart';
 
 /// SCR-03: Main Dashboard.
 /// Loads the households registered to the signed-in user.
@@ -75,7 +75,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           provider: item['electricity_provider']?.toString() ?? 'Not set',
           ratePerKwh: (item['rate_per_kwh'] as num?)?.toDouble() ?? 0.0,
           billingCycleDay: (item['billing_cycle_day'] as num?)?.toInt() ?? 1,
-          );
+        );
       }).toList();
 
       if (!mounted) return;
@@ -128,33 +128,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Opens the report form.
-  void _openReportForm() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const ReportFormScreen(),
-      ),
-    );
-  }
-
-  /// Opens the Reports screen.
-  void _openReports() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const ReportsScreen(),
-      ),
-    );
-  }
-
+  /// Opens the Profile & Settings screen.
   void _openProfile() {
-    showTemporaryMessage(
-      context,
-      'Profile / Settings (SCR-11) is not built yet. Temporary message.',
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ProfileSettingsScreen(),
+      ),
     );
   }
 
-  /// Returns to the landing page.
+  /// Logs out and returns to the landing page.
   void _logout() {
+    ApiService.logout();
+    ThemeController.resetToLight();
+
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) => const HomeScreen(),
@@ -174,11 +161,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         body: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Left sidebar.
-            DashboardSidebar(
-              onSubmitReport: _openReportForm,
-              onViewReports: _openReports,
-            ),
+            // Left: logo + animated Electricity Rates.
+            const DashboardSidebar(),
 
             // Right dashboard content.
             Expanded(
@@ -345,7 +329,9 @@ class _DashboardTopBar extends StatelessWidget {
         bottom: false,
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
+            constraints: const BoxConstraints(
+              maxWidth: AppLayout.contentMaxWidth,
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 24,
@@ -462,7 +448,8 @@ class _DashboardTopBar extends StatelessWidget {
   }
 }
 
-/// Dashboard page title and Add Household button.
+/// Page title, short description and the Add Household button.
+/// Side by side on wide screens; stacked on narrow screens.
 class _DashboardHeader extends StatelessWidget {
   final VoidCallback onAddHousehold;
 
@@ -481,7 +468,7 @@ class _DashboardHeader extends StatelessWidget {
           'My Households',
           style: TextStyle(
             color: LandingColors.textPrimary,
-            fontSize: 28,
+            fontSize: AppText.pageTitle,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.3,
           ),
@@ -628,7 +615,7 @@ class _EmptyHouseholds extends StatelessWidget {
   }
 }
 
-/// Lays household cards out in 1, 2 or 3 columns.
+/// Lays household cards out in 1, 2 or 3 columns depending on width.
 class _HouseholdGrid extends StatelessWidget {
   final List<Household> households;
   final void Function(Household household) onViewHousehold;

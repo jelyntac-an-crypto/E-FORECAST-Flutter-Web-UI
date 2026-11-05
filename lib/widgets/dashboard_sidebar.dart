@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../landing/landing_widgets.dart' show LandingLogo;
+import '../theme/app_tokens.dart';
 import '../theme/landing_colors.dart';
 import 'rate_carousel.dart';
 
@@ -8,23 +9,16 @@ import 'rate_carousel.dart';
 ///
 /// Top: the E-FORECAST logo.
 /// Middle: the "Electricity Rates" section with the animated [RateCarousel].
-/// Bottom: the "Submit a Report" and "View Reports" actions.
 class DashboardSidebar extends StatelessWidget {
-  /// Width of the sidebar on desktop.
-  static const double width = 280;
+  /// Width of the sidebar on desktop (shared value from app_tokens.dart).
+  static const double width = AppLayout.sidebarWidth;
 
   /// Height of the logo area. The top navigation in the main content area
   /// uses the same height so the lines meet across the screen.
-  static const double headerHeight = 64;
+  /// (shared value from app_tokens.dart)
+  static const double headerHeight = AppLayout.topBarHeight;
 
-  final VoidCallback onSubmitReport;
-  final VoidCallback onViewReports;
-
-  const DashboardSidebar({
-    super.key,
-    required this.onSubmitReport,
-    required this.onViewReports,
-  });
+  const DashboardSidebar({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -62,12 +56,6 @@ class DashboardSidebar extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-
-          // ── Report actions (anchored at the bottom) ──────────────────────
-          _ReportActions(
-            onSubmitReport: onSubmitReport,
-            onViewReports: onViewReports,
           ),
         ],
       ),
@@ -108,89 +96,6 @@ class _RatesHeading extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// "Submit a Report" and "View Reports", side by side.
-class _ReportActions extends StatelessWidget {
-  final VoidCallback onSubmitReport;
-  final VoidCallback onViewReports;
-
-  const _ReportActions({
-    required this.onSubmitReport,
-    required this.onViewReports,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(LandingRadius.control),
-    );
-    const padding = EdgeInsets.symmetric(horizontal: 8, vertical: 12);
-    const minSize = Size(0, 42);
-    const textStyle = TextStyle(fontSize: 13, fontWeight: FontWeight.w600);
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: LandingColors.border)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Reports',
-            style: TextStyle(
-              color: LandingColors.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: onSubmitReport,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: LandingColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: padding,
-                    minimumSize: minSize,
-                    shape: shape,
-                    textStyle: textStyle,
-                  ),
-                  child: const FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text('Submit a Report', maxLines: 1),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onViewReports,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: LandingColors.primary,
-                    side: BorderSide(color: LandingColors.border),
-                    padding: padding,
-                    minimumSize: minSize,
-                    shape: shape,
-                    textStyle: textStyle,
-                  ),
-                  child: const FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text('View Reports', maxLines: 1),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

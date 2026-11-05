@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../landing/landing_widgets.dart'
-    show
-        LandingCard,
-        LandingContainer,
-        LandingGrid,
-        LandingLogo,
-        SampleDataChip,
-        ThemeToggleButton;
+    show LandingCard, LandingContainer, LandingGrid, SampleDataChip;
 import '../models/household.dart';
 import '../theme/app_theme.dart';
 import '../theme/landing_colors.dart';
-import 'dashboard_screen.dart' show showTemporaryMessage;
+import '../widgets/app_back_link.dart';
+import '../widgets/app_message.dart';
+import '../widgets/app_top_bar.dart';
+import 'forecast_bill_screen.dart';
+import 'record_consumption_screen.dart';
+import 'usage_history_screen.dart';
+import 'usage_monitoring_screen.dart';
 
 /// SCR-05: Selected Household Dashboard.
-/// Shows the details of the household it receives. The four tools below are
-/// not built yet, so they show a temporary message. This is a UI preview:
-/// there are no readings, usage figures or forecasts for the household.
+/// Shows the details of the household it receives. Record Consumption, Usage
+/// History and Usage Monitoring open their own screens. Forecast & Bill is
+/// not built yet, so it shows a temporary message. This is a UI preview:
+/// there are no forecasts for the household.
 class HouseholdDashboardScreen extends StatelessWidget {
   final Household household;
 
@@ -26,6 +27,42 @@ class HouseholdDashboardScreen extends StatelessWidget {
     showTemporaryMessage(
       context,
       '$feature is not built yet. Temporary message.',
+    );
+  }
+
+  /// Opens the Record Consumption screen for this household.
+  void _openRecordConsumption(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RecordConsumptionScreen(household: household),
+      ),
+    );
+  }
+
+  /// Opens the Usage History screen for this household.
+  void _openUsageHistory(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => UsageHistoryScreen(household: household),
+      ),
+    );
+  }
+
+  /// Opens the Forecast & Bill screen for this household.
+  void _openForecastBill(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ForecastBillScreen(household: household),
+      ),
+    );
+  }
+
+  /// Opens the Usage Monitoring screen for this household.
+  void _openUsageMonitoring(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => UsageMonitoringScreen(household: household),
+      ),
     );
   }
 
@@ -40,7 +77,7 @@ class HouseholdDashboardScreen extends StatelessWidget {
         backgroundColor: LandingColors.backgroundSoft,
         body: Column(
           children: [
-            _HouseholdTopBar(compact: compact),
+            const AppTopBar(),
             Expanded(
               child: SingleChildScrollView(
                 child: LandingContainer(
@@ -50,7 +87,10 @@ class HouseholdDashboardScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildBackLink(context),
+                        AppBackLink(
+                          label: 'My Households',
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
                         const SizedBox(height: 12),
                         _HouseholdHeader(household: household),
                         const SizedBox(height: 20),
@@ -68,7 +108,19 @@ class HouseholdDashboardScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         _ActionGrid(
-                          onAction: (feature) => _comingSoon(context, feature),
+                          onAction: (feature) {
+                            if (feature == 'Record Consumption') {
+                              _openRecordConsumption(context);
+                            } else if (feature == 'Usage History') {
+                              _openUsageHistory(context);
+                            } else if (feature == 'Usage Monitoring') {
+                              _openUsageMonitoring(context);
+                            } else if (feature == 'Forecast & Bill') {
+                              _openForecastBill(context);
+                            } else {
+                              _comingSoon(context, feature);
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -81,23 +133,6 @@ class HouseholdDashboardScreen extends StatelessWidget {
       ),
     );
   }
-
-  /// Returns to My Households (the previous screen).
-  Widget _buildBackLink(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: TextButton.icon(
-        onPressed: () => Navigator.of(context).pop(),
-        icon: const Icon(Icons.arrow_back_rounded, size: 16),
-        label: const Text('My Households'),
-        style: TextButton.styleFrom(
-          foregroundColor: LandingColors.textSecondary,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-        ),
-      ),
-    );
-  }
 }
 
 /// Formats the rate for display, e.g. 12.5 -> "₱12.50 per kWh".
@@ -105,51 +140,6 @@ class HouseholdDashboardScreen extends StatelessWidget {
 String _formatRate(double rate) {
   final text = rate.toStringAsFixed(4).replaceFirst(RegExp(r'0{1,2}$'), '');
   return '₱$text per kWh';
-}
-
-/// Top bar: logo and theme toggle (same look as the other screens).
-class _HouseholdTopBar extends StatelessWidget {
-  final bool compact;
-
-  const _HouseholdTopBar({required this.compact});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: LandingColors.background,
-        border: Border(bottom: BorderSide(color: LandingColors.border)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: compact ? 16 : 24,
-                vertical: 8,
-              ),
-              child: const Row(
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: LandingLogo(),
-                      ),
-                    ),
-                  ),
-                  ThemeToggleButton(),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// House icon, household name and address.

@@ -1,14 +1,16 @@
+
 import 'package:flutter/material.dart';
 
 import '../landing/landing_widgets.dart' show LandingCard, LandingLogo;
-import '../theme/app_colors.dart'; // only for status colors (error / success)
+import '../services/api_service.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../theme/landing_colors.dart';
 import 'dashboard_screen.dart';
-import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final int initialTab;
+
   const LoginScreen({super.key, this.initialTab = 0});
 
   @override
@@ -23,56 +25,62 @@ class _LoginScreenState extends State<LoginScreen>
   final _signInEmailCtrl = TextEditingController();
   final _signInPassCtrl = TextEditingController();
 
-  // Register controllers
+  // Registration controllers
   final _regUsernameCtrl = TextEditingController();
   final _regEmailCtrl = TextEditingController();
   final _regPassCtrl = TextEditingController();
   final _regConfirmPassCtrl = TextEditingController();
 
-  // Visibility toggles (independent per field)
+  // Password visibility
   bool _signInObscure = true;
   bool _regObscure = true;
   bool _regConfirmObscure = true;
 
-  // Validation & loading state
+  // Validation and loading state
   bool _confirmMismatch = false;
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
+
     _tab = TabController(
       length: 2,
       vsync: this,
-      initialIndex: widget.initialTab,
+      initialIndex: widget.initialTab.clamp(0, 1),
     );
   }
 
   @override
   void dispose() {
     _tab.dispose();
+
     _signInEmailCtrl.dispose();
     _signInPassCtrl.dispose();
+
     _regUsernameCtrl.dispose();
     _regEmailCtrl.dispose();
     _regPassCtrl.dispose();
     _regConfirmPassCtrl.dispose();
+
     super.dispose();
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Password Helpers ──────────────────────────────────────────────
 
-  int _passwordStrength(String p) {
+  int _passwordStrength(String password) {
     int score = 0;
-    if (p.length >= 8) score++;
-    if (p.contains(RegExp(r'[A-Z]'))) score++;
-    if (p.contains(RegExp(r'[0-9]'))) score++;
-    if (p.contains(RegExp(r'[!@#\$&*~%^()_\-+=]'))) score++;
+
+    if (password.length >= 8) score++;
+    if (password.contains(RegExp(r'[A-Z]'))) score++;
+    if (password.contains(RegExp(r'[0-9]'))) score++;
+    if (password.contains(RegExp(r'[!@#\$&*~%^()_\-+=]'))) score++;
+
     return score;
   }
 
-  Color _strengthColor(int s) {
-    switch (s) {
+  Color _strengthColor(int strength) {
+    switch (strength) {
       case 1:
         return AppColors.rose;
       case 2:
@@ -86,8 +94,8 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  String _strengthLabel(int s) {
-    switch (s) {
+  String _strengthLabel(int strength) {
+    switch (strength) {
       case 1:
         return 'Weak';
       case 2:
@@ -101,8 +109,13 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  // ── Snackbar ──────────────────────────────────────────────────────
+
   void _showSnackbar(String message, {bool isError = false}) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).clearSnackBars();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: LandingColors.background,
@@ -143,117 +156,145 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  // ── Sign In ───────────────────────────────────────────────────────
+
   Future<void> _submitSignIn() async {
-  if (_signInEmailCtrl.text.trim().isEmpty ||
-      _signInPassCtrl.text.isEmpty) {
-    _showSnackbar('Please fill in all fields.', isError: true);
-    return;
-  }
+    final email = _signInEmailCtrl.text.trim();
+    final password = _signInPassCtrl.text;
 
-  setState(() => _loading = true);
+    if (email.isEmpty || password.isEmpty) {
+      _showSnackbar(
+        'Please fill in all fields.',
+        isError: true,
+      );
+      return;
+    }
 
-  try {
-    await ApiService.login(
-      usernameOrEmail: _signInEmailCtrl.text.trim(),
-      password: _signInPassCtrl.text,
-    );
+    setState(() => _loading = true);
 
-    if (!mounted) return;
+    try {
+      // Authenticate through the FastAPI backend.
+      await ApiService.login(
+        usernameOrEmail: email,
+        password: password,
+      );
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const DashboardScreen()),
-    );
-  } catch (e) {
-    if (!mounted) return;
-    _showSnackbar(e.toString().replaceFirst('Exception: ', ''),
-        isError: true);
-  } finally {
-    if (mounted) {
-      setState(() => _loading = false);
+      // Load the user's saved theme settings.
+      await ThemeController.loadForCurrentUser();
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DashboardScreen(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _showSnackbar(
+        e.toString().replaceFirst('Exception: ', ''),
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
-}
+
+  // ── Register ──────────────────────────────────────────────────────
 
   Future<void> _submitRegister() async {
-  final username = _regUsernameCtrl.text.trim();
-  final email = _regEmailCtrl.text.trim();
-  final pass = _regPassCtrl.text;
-  final confirm = _regConfirmPassCtrl.text;
+    final username = _regUsernameCtrl.text.trim();
+    final email = _regEmailCtrl.text.trim();
+    final password = _regPassCtrl.text;
+    final confirm = _regConfirmPassCtrl.text;
 
-  if (username.isEmpty ||
-      email.isEmpty ||
-      pass.isEmpty ||
-      confirm.isEmpty) {
-    _showSnackbar('Please fill in all fields.', isError: true);
-    return;
-  }
+    if (username.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        confirm.isEmpty) {
+      _showSnackbar(
+        'Please fill in all fields.',
+        isError: true,
+      );
+      return;
+    }
 
-  if (username.length < 3 || username.length > 50) {
-    _showSnackbar('Username must be 3–50 characters.', isError: true);
-    return;
-  }
+    if (username.length < 3 || username.length > 50) {
+      _showSnackbar(
+        'Username must be 3–50 characters.',
+        isError: true,
+      );
+      return;
+    }
 
-  if (!email.toLowerCase().endsWith('@gmail.com')) {
-    _showSnackbar('Please use a Gmail address.', isError: true);
-    return;
-  }
+    if (password.length < 8) {
+      _showSnackbar(
+        'Password must be at least 8 characters.',
+        isError: true,
+      );
+      return;
+    }
 
-  if (pass.length < 8) {
-    _showSnackbar('Password must be at least 8 characters.', isError: true);
-    return;
-  }
+    if (password != confirm) {
+      setState(() => _confirmMismatch = true);
+      return;
+    }
 
-  if (pass != confirm) {
-    setState(() => _confirmMismatch = true);
-    return;
-  }
+    setState(() {
+      _confirmMismatch = false;
+      _loading = true;
+    });
 
-  setState(() {
-    _confirmMismatch = false;
-    _loading = true;
-  });
+    try {
+      // Create the account through the FastAPI backend.
+      await ApiService.register(
+        username: username,
+        email: email,
+        password: password,
+      );
 
-  try {
-    await ApiService.register(
-      username: username,
-      email: email,
-      password: pass,
-    );
+      // Load the user's saved theme settings.
+      await ThemeController.loadForCurrentUser();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    _showSnackbar('Registration successful!');
-    _openDashboard();
-  } catch (e) {
-    if (!mounted) return;
-    _showSnackbar(
-      e.toString().replaceFirst('Exception: ', ''),
-      isError: true,
-    );
-  } finally {
-    if (mounted) {
-      setState(() => _loading = false);
+      // Continue to the dashboard after successful registration.
+      _openDashboard();
+    } catch (e) {
+      if (!mounted) return;
+
+      _showSnackbar(
+        e.toString().replaceFirst('Exception: ', ''),
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
-}
+
+  // ── Navigation ────────────────────────────────────────────────────
 
   void _openDashboard() {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      MaterialPageRoute(
+        builder: (_) => const DashboardScreen(),
+      ),
       (route) => false,
     );
   }
 
-  // ── build ─────────────────────────────────────────────────────────────────
+  // ── Main Build ───────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    // Small screens get a little less padding so the form still fits nicely.
     final compact = MediaQuery.sizeOf(context).width < 480;
 
-    // The app-wide theme is the old dark one, so we wrap this screen in the
-    // same light theme the landing page uses.
     return Theme(
       data: AppTheme.lightTheme,
       child: Scaffold(
@@ -289,8 +330,12 @@ class _LoginScreenState extends State<LoginScreen>
                             duration: const Duration(milliseconds: 220),
                             switchInCurve: Curves.easeOut,
                             switchOutCurve: Curves.easeIn,
-                            transitionBuilder: (child, anim) =>
-                                FadeTransition(opacity: anim, child: child),
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              );
+                            },
                             child: _tab.index == 0
                                 ? _buildSignInForm()
                                 : _buildRegisterForm(),
@@ -310,7 +355,8 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // The logo above the card. Clicking it goes back to the landing page.
+  // ── Logo ──────────────────────────────────────────────────────────
+
   Widget _buildLogoLink() {
     return Center(
       child: Tooltip(
@@ -319,7 +365,10 @@ class _LoginScreenState extends State<LoginScreen>
           borderRadius: BorderRadius.circular(LandingRadius.control),
           onTap: () => Navigator.maybePop(context),
           child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 6,
+            ),
             child: LandingLogo(),
           ),
         ),
@@ -327,23 +376,33 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // Small text link under the card.
+  // ── Back Link ────────────────────────────────────────────────────
+
   Widget _buildBackLink() {
     return Center(
       child: TextButton.icon(
         onPressed: () => Navigator.maybePop(context),
-        icon: const Icon(Icons.arrow_back_rounded, size: 16),
+        icon: const Icon(
+          Icons.arrow_back_rounded,
+          size: 16,
+        ),
         label: const Text('Back to home'),
         style: TextButton.styleFrom(
           foregroundColor: LandingColors.textSecondary,
-          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          textStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );
   }
 
+  // ── Header ────────────────────────────────────────────────────────
+
   Widget _buildHeader() {
     final signIn = _tab.index == 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -371,17 +430,23 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  // ── Tab Bar ───────────────────────────────────────────────────────
+
   Widget _buildTabBar() {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: LandingColors.backgroundSoft,
         borderRadius: BorderRadius.circular(LandingRadius.control),
-        border: Border.all(color: LandingColors.border),
+        border: Border.all(
+          color: LandingColors.border,
+        ),
       ),
       child: TabBar(
         controller: _tab,
-        onTap: (_) => setState(() => _confirmMismatch = false),
+        onTap: (_) {
+          setState(() => _confirmMismatch = false);
+        },
         dividerColor: Colors.transparent,
         indicator: BoxDecoration(
           color: LandingColors.primary,
@@ -390,7 +455,10 @@ class _LoginScreenState extends State<LoginScreen>
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: Colors.white,
         unselectedLabelColor: LandingColors.textSecondary,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        labelStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+        ),
         unselectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.w500,
           fontSize: 14,
@@ -403,7 +471,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Sign In Form ──────────────────────────────────────────────────────────
+  // ── Sign In Form ──────────────────────────────────────────────────
 
   Widget _buildSignInForm() {
     return Column(
@@ -412,8 +480,8 @@ class _LoginScreenState extends State<LoginScreen>
       children: [
         _buildField(
           controller: _signInEmailCtrl,
-          label: 'Email Address',
-          hint: 'you@example.com',
+          label: 'Email Address or Username',
+          hint: 'Enter your email or username',
           icon: Icons.mail_outline_rounded,
           keyboardType: TextInputType.emailAddress,
         ),
@@ -422,7 +490,9 @@ class _LoginScreenState extends State<LoginScreen>
           controller: _signInPassCtrl,
           label: 'Password',
           obscure: _signInObscure,
-          onToggle: () => setState(() => _signInObscure = !_signInObscure),
+          onToggle: () {
+            setState(() => _signInObscure = !_signInObscure);
+          },
         ),
         const SizedBox(height: 6),
         Align(
@@ -430,17 +500,26 @@ class _LoginScreenState extends State<LoginScreen>
           child: TextButton(
             onPressed: () {},
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: 4,
+              ),
               foregroundColor: LandingColors.primary,
             ),
             child: const Text(
               'Forgot password?',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
         const SizedBox(height: 8),
-        _buildSubmitButton(label: 'Sign In', onPressed: _submitSignIn),
+        _buildSubmitButton(
+          label: 'Sign In',
+          onPressed: _submitSignIn,
+        ),
         const SizedBox(height: 24),
         _buildDivider(),
         const SizedBox(height: 20),
@@ -455,10 +534,11 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Register Form ─────────────────────────────────────────────────────────
+  // ── Register Form ─────────────────────────────────────────────────
 
   Widget _buildRegisterForm() {
     final strength = _passwordStrength(_regPassCtrl.text);
+
     return Column(
       key: const ValueKey('register'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -466,7 +546,7 @@ class _LoginScreenState extends State<LoginScreen>
         _buildField(
           controller: _regUsernameCtrl,
           label: 'Username',
-          hint: 'Enter your usesrname',
+          hint: 'Enter your username',
           icon: Icons.person_outline_rounded,
         ),
         const SizedBox(height: 14),
@@ -482,7 +562,9 @@ class _LoginScreenState extends State<LoginScreen>
           controller: _regPassCtrl,
           label: 'Password',
           obscure: _regObscure,
-          onToggle: () => setState(() => _regObscure = !_regObscure),
+          onToggle: () {
+            setState(() => _regObscure = !_regObscure);
+          },
           onChanged: (_) => setState(() {}),
         ),
         if (_regPassCtrl.text.isNotEmpty) ...[
@@ -494,16 +576,24 @@ class _LoginScreenState extends State<LoginScreen>
           controller: _regConfirmPassCtrl,
           label: 'Confirm Password',
           obscure: _regConfirmObscure,
-          onToggle: () =>
-              setState(() => _regConfirmObscure = !_regConfirmObscure),
+          onToggle: () {
+            setState(() {
+              _regConfirmObscure = !_regConfirmObscure;
+            });
+          },
           isError: _confirmMismatch,
           errorText: 'Passwords do not match',
           onChanged: (_) {
-            if (_confirmMismatch) setState(() => _confirmMismatch = false);
+            if (_confirmMismatch) {
+              setState(() => _confirmMismatch = false);
+            }
           },
         ),
         const SizedBox(height: 24),
-        _buildSubmitButton(label: 'Create Account', onPressed: _submitRegister),
+        _buildSubmitButton(
+          label: 'Create Account',
+          onPressed: _submitRegister,
+        ),
         const SizedBox(height: 20),
         _buildSwitchPrompt(
           message: 'Already have an account?  ',
@@ -514,7 +604,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Shared Widget Builders ────────────────────────────────────────────────
+  // ── Shared Text Field ─────────────────────────────────────────────
 
   Widget _buildField({
     required TextEditingController controller,
@@ -526,14 +616,23 @@ class _LoginScreenState extends State<LoginScreen>
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
-      style: TextStyle(color: LandingColors.textPrimary, fontSize: 14),
+      style: TextStyle(
+        color: LandingColors.textPrimary,
+        fontSize: 14,
+      ),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(icon, size: 18, color: LandingColors.textSecondary),
+        prefixIcon: Icon(
+          icon,
+          size: 18,
+          color: LandingColors.textSecondary,
+        ),
       ),
     );
   }
+
+  // ── Shared Password Field ─────────────────────────────────────────
 
   Widget _buildPasswordField({
     required TextEditingController controller,
@@ -548,7 +647,10 @@ class _LoginScreenState extends State<LoginScreen>
       controller: controller,
       obscureText: obscure,
       onChanged: onChanged,
-      style: TextStyle(color: LandingColors.textPrimary, fontSize: 14),
+      style: TextStyle(
+        color: LandingColors.textPrimary,
+        fontSize: 14,
+      ),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(
@@ -558,7 +660,9 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         suffixIcon: IconButton(
           icon: Icon(
-            obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            obscure
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
             size: 18,
             color: LandingColors.textSecondary,
           ),
@@ -568,35 +672,49 @@ class _LoginScreenState extends State<LoginScreen>
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(LandingRadius.control),
           borderSide: BorderSide(
-            color: isError ? AppColors.rose : LandingColors.border,
+            color: isError
+                ? AppColors.rose
+                : LandingColors.border,
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(LandingRadius.control),
           borderSide: BorderSide(
-            color: isError ? AppColors.rose : LandingColors.primary,
+            color: isError
+                ? AppColors.rose
+                : LandingColors.primary,
             width: 1.5,
           ),
         ),
         errorText: isError ? errorText : null,
-        errorStyle: const TextStyle(color: AppColors.rose, fontSize: 12),
+        errorStyle: const TextStyle(
+          color: AppColors.rose,
+          fontSize: 12,
+        ),
       ),
     );
   }
 
+  // ── Password Strength Bar ─────────────────────────────────────────
+
   Widget _buildStrengthBar(int strength) {
     final color = _strengthColor(strength);
+
     return Row(
       children: [
         Expanded(
           child: Row(
-            children: List.generate(4, (i) {
+            children: List.generate(4, (index) {
               return Expanded(
                 child: Container(
-                  margin: EdgeInsets.only(right: i < 3 ? 5 : 0),
+                  margin: EdgeInsets.only(
+                    right: index < 3 ? 5 : 0,
+                  ),
                   height: 3,
                   decoration: BoxDecoration(
-                    color: i < strength ? color : LandingColors.border,
+                    color: index < strength
+                        ? color
+                        : LandingColors.border,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -617,6 +735,8 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  // ── Submit Button ─────────────────────────────────────────────────
+
   Widget _buildSubmitButton({
     required String label,
     required VoidCallback onPressed,
@@ -627,7 +747,8 @@ class _LoginScreenState extends State<LoginScreen>
         onPressed: _loading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: LandingColors.primary,
-          disabledBackgroundColor: LandingColors.primary.withValues(alpha: 0.6),
+          disabledBackgroundColor:
+              LandingColors.primary.withValues(alpha: 0.6),
           foregroundColor: Colors.white,
           disabledForegroundColor: Colors.white,
           shape: RoundedRectangleBorder(
@@ -655,28 +776,55 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  // ── Divider ───────────────────────────────────────────────────────
+
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(child: Divider(color: LandingColors.border, thickness: 1)),
+        Expanded(
+          child: Divider(
+            color: LandingColors.border,
+            thickness: 1,
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Text(
             'or continue with',
-            style: TextStyle(color: LandingColors.textSecondary, fontSize: 12),
+            style: TextStyle(
+              color: LandingColors.textSecondary,
+              fontSize: 12,
+            ),
           ),
         ),
-        Expanded(child: Divider(color: LandingColors.border, thickness: 1)),
+        Expanded(
+          child: Divider(
+            color: LandingColors.border,
+            thickness: 1,
+          ),
+        ),
       ],
     );
   }
 
+  // ── Social Buttons ─────────────────────────────────────────────────
+
   Widget _buildSocialRow() {
     return Row(
       children: [
-        Expanded(child: _socialButton('Google', Icons.g_mobiledata_rounded)),
+        Expanded(
+          child: _socialButton(
+            'Google',
+            Icons.g_mobiledata_rounded,
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _socialButton('GitHub', Icons.code_rounded)),
+        Expanded(
+          child: _socialButton(
+            'GitHub',
+            Icons.code_rounded,
+          ),
+        ),
       ],
     );
   }
@@ -686,20 +834,32 @@ class _LoginScreenState extends State<LoginScreen>
       onPressed: () {},
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 13),
-        side: BorderSide(color: LandingColors.border, width: 1.5),
+        side: BorderSide(
+          color: LandingColors.border,
+          width: 1.5,
+        ),
         backgroundColor: LandingColors.background,
         foregroundColor: LandingColors.textPrimary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(LandingRadius.control),
         ),
       ),
-      icon: Icon(icon, size: 20, color: LandingColors.textSecondary),
+      icon: Icon(
+        icon,
+        size: 20,
+        color: LandingColors.textSecondary,
+      ),
       label: Text(
         label,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
+
+  // ── Switch Prompt ─────────────────────────────────────────────────
 
   Widget _buildSwitchPrompt({
     required String message,
@@ -711,7 +871,10 @@ class _LoginScreenState extends State<LoginScreen>
       children: [
         Text(
           message,
-          style: TextStyle(color: LandingColors.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color: LandingColors.textSecondary,
+            fontSize: 13,
+          ),
         ),
         GestureDetector(
           onTap: onTap,

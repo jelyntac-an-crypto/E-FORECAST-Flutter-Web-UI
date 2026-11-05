@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../main.dart'; // Import to use the global themeNotifier
+import '../services/api_service.dart';
 
 /// Corner sizes used across the landing page and login screen.
 class LandingRadius {
@@ -10,16 +13,21 @@ class LandingRadius {
 }
 
 /// Holds light/dark mode and rebuilds the whole app when it changes.
+/// The theme is saved in this browser only, separately for each logged-in
+/// user (by user id). Light mode is the default.
 class ThemeController {
   ThemeController._();
 
-  // 1. Point mode to the global themeNotifier in main.dart
+  // Point mode to the global themeNotifier in main.dart
   static ValueNotifier<ThemeMode> get mode => themeNotifier;
   static bool get isDark => mode.value == ThemeMode.dark;
 
-  static void toggle() {
-    // Toggles global notifier
-    mode.value = isDark ? ThemeMode.light : ThemeMode.dark;
+  /// The browser-storage name for one user's theme.
+  static String _key(int userId) => 'theme_mode_user_$userId';
+
+  /// Shows a theme everywhere. Does not save anything.
+  static void setMode(ThemeMode newMode) {
+    mode.value = newMode;
 
     // Force rebuild every element so static LandingColors update everywhere
     void rebuild(Element el) {
@@ -29,6 +37,53 @@ class ThemeController {
 
     WidgetsBinding.instance.rootElement?.visitChildren(rebuild);
   }
+
+  /// Used by the theme buttons and the Profile & Settings switch.
+  /// Changes the theme and, if a user is logged in, saves it for that user.
+  static void toggle() {
+    setMode(isDark ? ThemeMode.light : ThemeMode.dark);
+    _save(mode.value);
+  }
+
+  /// Saves the theme for the logged-in user. Nothing is saved if nobody is
+  /// logged in (for example on the landing page).
+  static Future<void> _save(ThemeMode value) async {
+    final userId = ApiService.currentUserId;
+    if (userId == null) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _key(userId),
+        value == ThemeMode.dark ? 'dark' : 'light',
+      );
+    } catch (_) {
+      // The theme still changes on screen; it just will not be remembered.
+    }
+  }
+
+  /// Call after login: shows this user's saved theme, or light mode if they
+  /// have not saved one.
+  static Future<void> loadForCurrentUser() async {
+    final userId = ApiService.currentUserId;
+    var theme = ThemeMode.light;
+
+    if (userId != null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getString(_key(userId)) == 'dark') {
+          theme = ThemeMode.dark;
+        }
+      } catch (_) {
+        // Keep light mode.
+      }
+    }
+
+    setMode(theme);
+  }
+
+  /// Call at logout: shows light mode again. The saved preference is kept.
+  static void resetToLight() => setMode(ThemeMode.light);
 }
 
 /// Palette for the landing page and login screen. Every color switches
